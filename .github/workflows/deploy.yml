@@ -1,0 +1,63 @@
+# Builds the real-data site and deploys it to GitHub Pages.
+# Runs on every push to main, weekly (to pick up new matches), and on demand.
+name: Build data & deploy
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1' # every Monday 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Download open data (Cricsheet, StatsBomb match lists, UFC stats)
+        run: npm run data:download
+
+      - name: Build data files
+        run: npm run data:build
+
+      - name: Validate data
+        run: npm run validate:data -- --generated && npm run test:generated && npm run test:logic
+
+      - name: Build site
+        run: npm run build
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
+
+      # GitHub Pages has no SPA rewrites: serve the app for unknown paths too.
+      - run: cp dist/index.html dist/404.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
