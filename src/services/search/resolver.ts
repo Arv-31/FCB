@@ -33,7 +33,9 @@ export function scoreCompetitor(c: Competitor, rawQuery: string): number {
   const name = normalize(c.name)
   const names = [name, normalize(c.shortName), ...c.aliases.map(normalize)]
 
-  if (names.includes(q)) return 100
+  // Name and curated aliases beat short codes, which can collide (Indonesia "IND" vs India "IND").
+  if (q === name || c.aliases.some((a) => normalize(a) === q)) return 100
+  if (q === normalize(c.shortName)) return 95
   if (name.startsWith(q)) return 85
   if (names.some((n) => n.startsWith(q))) return 75
   if (name.split(' ').some((t) => t.startsWith(q))) return 70

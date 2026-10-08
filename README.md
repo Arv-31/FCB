@@ -1,63 +1,57 @@
-# MatchIntel — Sports Match Intelligence (prototype)
+# MatchIntel — Sports Match Intelligence
 
-Search two teams or fighters, see their head-to-head history, and open any match for a full
-summary, sport-specific statistics, a timeline of key events and an AI-style analysis.
-Supports **Cricket, Football and UFC**.
+Search two teams or fighters, see their full head-to-head history, and open any match for a
+summary, sport-specific statistics, a timeline of key events and an automated analysis.
 
-> ⚠️ All matches are **fictional demo data** (clearly labelled in the UI). Team and fighter
-> names are real so search works, but players, events, scores and statistics are invented.
-> See [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) for free real-data sources.
+**Live site:** https://arv-31.github.io/FCB/
 
-## Run it
+| Sport | Source (free, open) | Coverage |
+|---|---|---|
+| Cricket | [Cricsheet](https://cricsheet.org) ball-by-ball data | ~9,900 men's & women's international Tests, ODIs, T20Is |
+| Football | [StatsBomb Open Data](https://github.com/statsbomb/open-data) | ~4,000 matches (World Cups, Euros, many La Liga seasons incl. 31 Clásicos, 2015/16 Premier League, …) |
+| UFC | [UFCStats.com](http://ufcstats.com) via [scrape_ufc_stats](https://github.com/Greco1899/scrape_ufc_stats) | ~8,900 fights, round-by-round |
+| Images | [TheSportsDB](https://www.thesportsdb.com) | Club badges & fighter photos (exact sport + name matches only) |
+
+No API keys or paid services. Data is rebuilt weekly by GitHub Actions.
+
+## Run locally
 
 ```bash
 npm install
-npm run dev          # http://localhost:5199
+npm run setup     # downloads the open data (~75 MB) and builds public/data (~2 min)
+npm run dev       # http://localhost:5199
 ```
 
 | Command | What it does |
 |---|---|
-| `npm run dev` | Dev server on port **5199** (a dedicated port, so it won't clash with other projects) |
+| `npm run setup` | `data:download` + `data:build` |
 | `npm run build` | Typecheck + production build to `dist/` |
-| `npm run preview` | Serve the production build on port 5198 |
-| `npm run validate:data` | Consistency checks on match data (runs + extras = total, goals = score, rounds = totals…) |
-| `npm run test:logic` | Search aliases + narrative/timeline/analysis generation for every match (`-- --print` to read the output) |
+| `npm run validate:data -- --generated` | Consistency checks on every real match (runs + extras = total, rounds = totals, …) |
+| `npm run test:generated` | Narrative/timeline/analysis over every match + real-data search cases |
+| `npm run test:logic` | Same checks on the small demo fixtures |
+| `VITE_DATA_PROVIDER=mock npm run dev` | Run offline on fictional demo data |
 
-Try: **India vs Australia**, **IND vs AUS**, **Madrid vs Barca** (typed in one box),
-**Makhachev vs Oliveira**, or deep links like `/matchup/cricket/IND/AUS`.
-Append `?simulate=network`, `?simulate=rate-limit` or `?simulate=unavailable` to any URL to see the error states.
+## Deploy
+
+`.github/workflows/deploy.yml` downloads the data, builds it, validates it and deploys to GitHub Pages
+on every push to `main`, every Monday, and on demand (Actions → *Build data & deploy* → Run workflow).
+One-time setup: repo **Settings → Pages → Source: GitHub Actions**.
+`netlify.toml` and `vercel.json` are included for those hosts too.
 
 ## Architecture
 
 ```
-UI (pages/components)  ──►  sportsService (SportsDataService: routing + caching + H2H aggregation)
-                                 ├── cricketService  ┐
-                                 ├── footballService ├─ each returns a SportProvider (currently MockProvider)
-                                 └── ufcService      ┘
-Derived, data-only builders:  timeline/ · narrative/ · analysis/ (AnalysisEngine interface)
-Images:                        images/imageService (TheSportsDB, exact sport+name match, monogram fallback)
+UI (pages/components) ──► sportsService (routing, caching, H2H aggregation, pair-aware search)
+                             ├── cricket  → StaticProvider          (public/data/cricket, built from Cricsheet)
+                             ├── football → FootballStatsBombProvider (index from public/data; events fetched per match)
+                             └── ufc      → StaticProvider          (public/data/ufc, built from UFCStats CSVs)
+Derived from data only:  timeline/ · narrative/ · analysis/ (AnalysisEngine interface — swap in an LLM later)
+Build pipeline:          scripts/data/{download,buildCricket,buildFootball,buildUfc}.ts
 ```
 
-```
-src/
-  components/  ui/ (primitives) · search/ · match/ · sports/{cricket,football,ufc}/
-  pages/       Home · Matches · Matchup · Match · About · NotFound
-  layouts/     RootLayout (nav, demo banner, error boundary, suspense)
-  services/    sportsService · providers/ · search/ · timeline/ · narrative/ · analysis/ · images/ · cache
-  data/mock/   competitors · cricketMatches · footballMatches · ufcMatches
-  types/       domain model (discriminated union per sport)
-  hooks/ utils/ config/
-scripts/       validateData.ts · smokeTest.ts
-```
+**Accuracy rules:** statistics appear only when the source has them (otherwise *"This statistic isn't
+available from the current data source"*); summaries and timelines are assembled from data fields;
+football possession is labelled as an estimate; AI analysis is labelled as interpretation and cites
+its evidence. See [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md).
 
-**Accuracy rules built into the code**
-- Missing fields stay `undefined` and render as *"This statistic isn't available from the current data source."*
-- Timeline and "What happened?" are generated only from structured data fields, so nothing is invented.
-- AI Match Analysis is labelled as interpretation, and every point lists the verified figures behind it.
-  The MVP engine is local and rule-based (free). An LLM can implement `AnalysisEngine` later.
-
-**Adding a sport:** add the id to `SportId`, a stats type + `MatchDetail` variant, a provider factory,
-an entry in `config/sports.ts`, and a stats panel in `components/sports/SportStats.tsx`.
-
-**Performance:** route-level code splitting, lazy images, cached + de-duplicated requests,
-debounced autocomplete, skeleton loaders, and match details fetched only when a match is opened.
+MatchIntel is an independent, non-commercial project, not affiliated with any league, team or data provider.

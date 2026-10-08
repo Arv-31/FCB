@@ -57,7 +57,8 @@ export function buildFootball() {
   const team = (id: number, name: string, gender: string, country?: string) => {
     const cid = `fb-${id}`
     if (!competitors.has(cid)) {
-      const women = isWomen(gender) && !/women/i.test(name)
+      // Don't double-label names that already say so ("Barcelona WFC", "Real Madrid CF W", "... Women's").
+      const women = isWomen(gender) && !/\b(women'?s?|w|wfc|ladies|femen\w*|femin\w*)\b/i.test(name)
       const display = women ? `${name} Women` : name
       const base = ALIASES[name] ?? []
       const initials = name.split(/\s+/).length > 1 ? [name.split(/\s+/).map((w) => w[0]).join('').toLowerCase()] : []
@@ -65,7 +66,7 @@ export function buildFootball() {
         id: cid, sport: 'football', kind: 'team', name: display,
         shortName: SHORT[name] ?? name.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase(),
         aliases: (women ? [...base.map((a) => `${a} women`), `${name} women`] : [...base, ...initials]).filter((a) => a.length > 1),
-        subtitle: [women ? 'Women' : undefined, country].filter(Boolean).join(' · ') || undefined,
+        subtitle: [isWomen(gender) ? 'Women' : undefined, country].filter(Boolean).join(' · ') || undefined,
         country,
         colors: KNOWN_COLORS[name] ?? colorsFor(name),
       })

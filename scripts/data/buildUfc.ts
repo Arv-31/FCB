@@ -21,7 +21,8 @@ const att = (s: string | undefined): Attempted | undefined => {
   const m = s?.match(/^(\d+) of (\d+)$/)
   return m ? { landed: Number(m[1]), attempted: Number(m[2]) } : undefined
 }
-const num = (s: string | undefined) => (s && /^\d+$/.test(s) ? Number(s) : undefined)
+// Counts appear as "1" or "1.0" in the source.
+const num = (s: string | undefined) => (s && /^\d+(\.0+)?$/.test(s) ? Math.round(Number(s)) : undefined)
 const ctrl = (s: string | undefined) => (s && /^\d+:\d{2}$/.test(s) ? s : undefined)
 const toSec = (t: string) => {
   const [m, s] = t.split(':').map(Number)

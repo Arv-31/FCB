@@ -44,7 +44,9 @@ export function analyzeFootball(d: FootballMatchDetail, nameOf: NameOf): Points 
   // Turning point: a red card, else a goal from a substitute, else the decisive goal.
   const red = s.cards?.find((c) => c.card !== 'yellow')
   const subGoal = goals.find((g) => s.substitutions?.some((sub) => sub.playerOn === g.scorer || sub.playerOn === g.assist))
-  if (red) {
+  // A red card is only the turning point if the scoreline changed after it.
+  const redMattered = red ? goals.some((g) => t(g) > red.minute) : false
+  if (red && redMattered) {
     const after = goals.filter((g) => t(g) > red.minute)
     const benefit = after.filter((g) => g.teamId !== red.teamId).length
     points.turningPoint = {

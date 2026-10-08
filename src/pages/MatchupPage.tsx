@@ -18,14 +18,25 @@ import { formatDate } from '@/utils/format'
 
 const STEP = 6
 
-/** Accepts competitor ids or free text in the URL (/matchup/cricket/IND/AUS also works). */
-async function resolveParam(sport: SportId, value: string): Promise<Competitor> {
+/**
+ * Accepts competitor ids or free text in the URL (/matchup/cricket/IND/AUS,
+ * /matchup/ufc/Makhachev/Oliveira). Free text is resolved as a pair so an
+ * ambiguous name picks the competitor who actually met the other side.
+ */
+async function resolveParams(sport: SportId, a: string, b: string): Promise<[Competitor, Competitor]> {
   const all = await sportsService.listCompetitors(sport)
-  const byId = all.find((c) => c.id === value)
-  if (byId) return byId
-  const r = await sportsService.resolve(sport, decodeURIComponent(value))
-  if (r.status === 'resolved') return r.competitor
-  throw new DataError('unknown-competitor', `We couldn’t find “${decodeURIComponent(value)}” in ${SPORTS[sport].label}.`)
+  const ida = all.find((c) => c.id === a)
+  const idb = all.find((c) => c.id === b)
+  if (ida && idb) return [ida, idb]
+  const ta = ida?.name ?? decodeURIComponent(a)
+  const tb = idb?.name ?? decodeURIComponent(b)
+  const pair = await sportsService.resolvePair(sport, ta, tb)
+  if (pair.status === 'ok') return [ida ?? pair.a, idb ?? pair.b]
+  const bad = !ida && pair.a?.status !== 'resolved' ? ta : tb
+  const ambiguous = (bad === ta ? pair.a : pair.b)?.status === 'ambiguous'
+  throw new DataError('unknown-competitor', ambiguous
+    ? `“${bad}” matches several ${SPORTS[sport].competitorNoun.toLowerCase()}s in ${SPORTS[sport].label} — please search with a fuller name.`
+    : `We couldn’t find “${bad}” in ${SPORTS[sport].label}.`)
 }
 
 export default function MatchupPage() {
@@ -40,7 +51,7 @@ export default function MatchupPage() {
 
   const state = useAsync(async () => {
     if (!sport) throw new DataError('invalid-request', `“${rawSport}” isn’t a supported sport yet.`)
-    const [ca, cb] = await Promise.all([resolveParam(sport, a), resolveParam(sport, b)])
+    const [ca, cb] = await resolveParams(sport, a, b)
     const h2h = await sportsService.getHeadToHead(sport, ca.id, cb.id)
     return { ca, cb, h2h }
   }, [sport, a, b])
