@@ -38,20 +38,3 @@ on every push to `main`, every Monday, and on demand (Actions → *Build data & 
 One-time setup: repo **Settings → Pages → Source: GitHub Actions**.
 `netlify.toml` and `vercel.json` are included for those hosts too.
 
-## Architecture
-
-```
-UI (pages/components) ──► sportsService (routing, caching, H2H aggregation, pair-aware search)
-                             ├── cricket  → StaticProvider          (public/data/cricket, built from Cricsheet)
-                             ├── football → FootballStatsBombProvider (index from public/data; events fetched per match)
-                             └── ufc      → StaticProvider          (public/data/ufc, built from UFCStats CSVs)
-Derived from data only:  timeline/ · narrative/ · analysis/ (AnalysisEngine interface — swap in an LLM later)
-Build pipeline:          scripts/data/{download,buildCricket,buildFootball,buildUfc}.ts
-```
-
-**Accuracy rules:** statistics appear only when the source has them (otherwise *"This statistic isn't
-available from the current data source"*); summaries and timelines are assembled from data fields;
-football possession is labelled as an estimate; AI analysis is labelled as interpretation and cites
-its evidence. See [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md).
-
-MatchIntel is an independent, non-commercial project, not affiliated with any league, team or data provider.
