@@ -22,14 +22,6 @@ npm run setup     # downloads the open data (~75 MB) and builds public/data (~2 
 npm run dev       # http://localhost:5199
 ```
 
-| Command | What it does |
-|---|---|
-| `npm run setup` | `data:download` + `data:build` |
-| `npm run build` | Typecheck + production build to `dist/` |
-| `npm run validate:data -- --generated` | Consistency checks on every real match (runs + extras = total, rounds = totals, …) |
-| `npm run test:generated` | Narrative/timeline/analysis over every match + real-data search cases |
-| `npm run test:logic` | Same checks on the small demo fixtures |
-| `VITE_DATA_PROVIDER=mock npm run dev` | Run offline on fictional demo data |
 
 ## Deploy
 
